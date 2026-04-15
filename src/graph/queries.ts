@@ -183,6 +183,56 @@ export async function getDirectorySymbols(
 }
 
 /**
+ * Fuzzy symbol search — returns all symbols whose name contains the query string.
+ */
+export async function findSymbol(
+  db: Database.Database,
+  query: string,
+  limit = 50,
+): Promise<Symbol[]> {
+  const rows = db.prepare(`
+    SELECT * FROM symbols
+    WHERE name LIKE $pattern
+    ORDER BY
+      CASE WHEN name = $exact THEN 0
+           WHEN name LIKE $prefix THEN 1
+           ELSE 2 END,
+      name
+    LIMIT $limit
+  `).all({
+    pattern: `%${query}%`,
+    exact:   query,
+    prefix:  `${query}%`,
+    limit,
+  }) as Record<string, unknown>[];
+  return rows.map(rowToSymbol);
+}
+
+/**
+ * Return all symbols (in other files) that import the given file.
+ */
+export async function getImporters(
+  db: Database.Database,
+  filePath: string,
+): Promise<{ symbol: Symbol; line: number }[]> {
+  const rows = db.prepare(`
+    SELECT
+      s.id, s.name, s.kind, s.file, s.line, s.signature, s.docstring,
+      e.line AS import_line
+    FROM edges e
+    JOIN symbols s ON s.id = e.from_symbol
+    WHERE e.kind = 'imports'
+      AND e.to_symbol IN (SELECT id FROM symbols WHERE file = $file OR file = $absFile)
+    GROUP BY s.file
+    ORDER BY s.file
+  `).all({ file: filePath, absFile: filePath }) as Record<string, unknown>[];
+  return rows.map((row) => ({
+    symbol: rowToSymbol(row),
+    line:   (row["import_line"] as number | null) ?? (row["line"] as number),
+  }));
+}
+
+/**
  * Best-effort: find the type/interface a symbol references.
  */
 export async function getTypeDefinition(
