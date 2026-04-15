@@ -17,6 +17,13 @@ import { loadScipIndex } from "./scip-reader.js";
 import { startWatcher } from "./watcher.js";
 import { setStatus } from "./status.js";
 
+/** SCIP cache files removed by `forceReindex` to bypass the 24h cache. */
+const SCIP_FILES = ["index-python.scip", "index-ts.scip"];
+
+/** True while a `forceReindex` is in flight, used by the MCP tool to refuse
+ * concurrent invocations rather than corrupt the in-progress run. */
+let reindexInFlight = false;
+
 function log(msg: string): void {
   process.stderr.write(msg + "\n");
 }
@@ -152,4 +159,60 @@ export async function runIndexer(): Promise<void> {
   startWatcher(getDb(), repoPath);
 
   log("→ Ariadne ready.");
+}
+
+/**
+ * Drop the SCIP cache files and re-run the full indexing pipeline.
+ *
+ * The default startup path treats `.ariadne/index-*.scip` as a 24h cache
+ * keyed on file mtime; large structural changes (refactor, new modules)
+ * therefore aren't reflected until the cache is manually deleted. This
+ * function does that deletion atomically and then re-enters `runIndexer`,
+ * letting the agent ask for a fresh map without restarting the MCP server.
+ *
+ * Returns a one-line summary suitable for use as the MCP tool response.
+ *
+ * Refuses concurrent invocations: a re-index in flight needs to finish
+ * before another one is meaningful, and stomping the SCIP files mid-run
+ * would corrupt the partial load.
+ */
+export async function forceReindex(): Promise<string> {
+  if (reindexInFlight) {
+    return "Re-index already in progress — wait for it to finish before triggering another.";
+  }
+
+  reindexInFlight = true;
+  const startedAt = Date.now();
+
+  try {
+    const repoPath = process.cwd();
+    const ariadneDir = path.join(repoPath, ".ariadne");
+
+    log("→ Force re-index requested: deleting SCIP cache and graph DB...");
+
+    // Drop the SCIP cache so `needsReload` always sees the SCIP file as
+    // newer than the (about-to-be-recreated) DB. Errors are non-fatal:
+    // a missing file is the desired post-state.
+    await Promise.all(
+      SCIP_FILES.map((file) =>
+        fs.rm(path.join(ariadneDir, file), { force: true }),
+      ),
+    );
+
+    // Wipe the graph DB for the same reason — without this, `needsReload`
+    // can short-circuit and skip the SCIP load on stale-but-equal mtimes.
+    await wipAndReinit(repoPath);
+
+    await runIndexer();
+
+    const elapsedMs = Date.now() - startedAt;
+    return `Re-index complete in ${(elapsedMs / 1000).toFixed(1)}s. Index is ready.`;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    setStatus({ state: "error", phase: `Re-index failed: ${msg}`, errorMessage: msg });
+    log(`→ Force re-index failed: ${msg}`);
+    return `Re-index failed: ${msg}`;
+  } finally {
+    reindexInFlight = false;
+  }
 }

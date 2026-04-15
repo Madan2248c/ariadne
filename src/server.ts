@@ -13,6 +13,7 @@ import {
   handleGetTypeDefinition,
   handleGetSourceDefinition,
   handleGetIndexStatus,
+  handleReindex,
 } from "./tools/index.js";
 
 // getDb() is called lazily inside each tool handler — NOT at server creation time.
@@ -137,6 +138,19 @@ export function createServer(): McpServer {
     {},
     async () => ({
       content: [{ type: "text" as const, text: handleGetIndexStatus() }],
+    }),
+  );
+
+  server.tool(
+    "reindex",
+    "Force-rebuild the Ariadne code index. Deletes the SCIP cache and graph " +
+    "database, then re-runs scip-typescript / scip-python from scratch and " +
+    "reloads symbols. Use after a large refactor when the existing index is " +
+    "stale and the 24h SCIP cache hasn't expired yet. Re-indexing a large " +
+    "TypeScript repo can take 5–10 minutes; warn the user before calling.",
+    {},
+    async () => ({
+      content: [{ type: "text" as const, text: await handleReindex() }],
     }),
   );
 

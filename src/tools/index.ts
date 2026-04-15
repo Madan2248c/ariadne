@@ -9,6 +9,7 @@ export { GET_FILE_SYMBOLS_TOOL, handleGetFileSymbols } from "./get-file-symbols.
 export { GET_TYPE_DEFINITION_TOOL, handleGetTypeDefinition } from "./get-type-definition.js";
 export { GET_SOURCE_DEFINITION_TOOL, handleGetSourceDefinition } from "./get-source-definition.js";
 export { GET_INDEX_STATUS_TOOL, handleGetIndexStatus } from "./get-index-status.js";
+export { REINDEX_TOOL, handleReindex } from "./reindex.js";
 
 import { GET_DEFINITION_TOOL } from "./get-definition.js";
 import { GET_CALLERS_TOOL } from "./get-callers.js";
@@ -20,6 +21,7 @@ import { GET_FILE_SYMBOLS_TOOL } from "./get-file-symbols.js";
 import { GET_TYPE_DEFINITION_TOOL } from "./get-type-definition.js";
 import { GET_SOURCE_DEFINITION_TOOL } from "./get-source-definition.js";
 import { GET_INDEX_STATUS_TOOL } from "./get-index-status.js";
+import { REINDEX_TOOL } from "./reindex.js";
 
 export const ALL_TOOLS = [
   GET_DEFINITION_TOOL,
@@ -32,4 +34,5 @@ export const ALL_TOOLS = [
   GET_TYPE_DEFINITION_TOOL,
   GET_SOURCE_DEFINITION_TOOL,
   GET_INDEX_STATUS_TOOL,
+  REINDEX_TOOL,
 ];
