@@ -15,6 +15,7 @@ import {
   handleGetIndexStatus,
   handleFindSymbol,
   handleGetImporters,
+  handleSearchFiles,
 } from "./tools/index.js";
 
 // getDb() is called lazily inside each tool handler — NOT at server creation time.
@@ -160,6 +161,15 @@ export function createServer(): McpServer {
     { file: z.string().describe("Repo-relative path to the file") },
     async ({ file }) => ({
       content: [{ type: "text" as const, text: await handleGetImporters(getDb(), { file }) }],
+    }),
+  );
+
+  server.tool(
+    "search_files",
+    "Find all indexed files whose path matches a pattern. Supports * (any chars) and ** (any path segment). E.g. search_files('**/*password*') finds all files with 'password' in the name. Replaces glob.",
+    { pattern: z.string().describe("Glob-style pattern (e.g. **/*password*, src/modules/**)") },
+    async ({ pattern }) => ({
+      content: [{ type: "text" as const, text: await handleSearchFiles(getDb(), { pattern }) }],
     }),
   );
 

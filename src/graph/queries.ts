@@ -233,6 +233,27 @@ export async function getImporters(
 }
 
 /**
+ * Find all indexed files whose path matches a glob-style pattern.
+ * Supports * (any chars except /) and ** (any chars including /).
+ */
+export async function searchFiles(
+  db: Database.Database,
+  pattern: string,
+): Promise<string[]> {
+  // Convert glob pattern to SQL LIKE pattern
+  const sqlPattern = pattern
+    .replace(/%/g, "\\%")   // escape existing % 
+    .replace(/\*\*/g, "%")  // ** → %
+    .replace(/\*/g, "%");   // * → %
+
+  const rows = db.prepare(
+    `SELECT DISTINCT file FROM symbols WHERE file LIKE $pattern ESCAPE '\\' ORDER BY file`
+  ).all({ pattern: sqlPattern }) as { file: string }[];
+
+  return rows.map((r) => r.file);
+}
+
+/**
  * Best-effort: find the type/interface a symbol references.
  */
 export async function getTypeDefinition(
