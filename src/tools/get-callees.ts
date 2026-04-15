@@ -1,6 +1,7 @@
 // MCP tool: get_callees
 import type { Database } from "../graph/db.js";
 import { getCallees } from "../graph/queries.js";
+import { fmtSymbol, cap } from "./format.js";
 
 export const GET_CALLEES_TOOL = {
   name: "get_callees",
@@ -19,18 +20,9 @@ export async function handleGetCallees(
   args: { symbol: string },
 ): Promise<string> {
   const results = await getCallees(db, args.symbol);
-  if (results.length === 0) {
-    return `No callees found for "${args.symbol}".`;
-  }
+  if (results.length === 0) return `No callees found for "${args.symbol}".`;
 
-  return JSON.stringify(
-    results.map((s) => ({
-      name: s.name,
-      kind: s.kind,
-      file: s.file,
-      line: s.line,
-    })),
-    null,
-    2,
-  );
+  const { items, note } = cap(results, "callees");
+  const out = items.map(fmtSymbol);
+  return JSON.stringify(note ? { note, callees: out } : out, null, 2);
 }

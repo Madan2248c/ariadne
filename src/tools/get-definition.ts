@@ -1,6 +1,7 @@
 // MCP tool: get_definition
 import type { Database } from "../graph/db.js";
 import { getDefinition } from "../graph/queries.js";
+import { relPath, firstLine } from "./format.js";
 
 export const GET_DEFINITION_TOOL = {
   name: "get_definition",
@@ -25,16 +26,14 @@ export async function handleGetDefinition(
   }
 
   const { symbol } = result;
-  return JSON.stringify(
-    {
-      name: symbol.name,
-      kind: symbol.kind,
-      file: symbol.file,
-      line: symbol.line,
-      signature: symbol.signature ?? null,
-      docstring: symbol.docstring ?? null,
-    },
-    null,
-    2,
-  );
+  const out: Record<string, unknown> = {
+    name: symbol.name,
+    kind: symbol.kind,
+    file: relPath(symbol.file),
+    line: symbol.line,
+  };
+  const sig = firstLine(symbol.signature);
+  if (sig) out["signature"] = sig;
+  if (symbol.docstring) out["docstring"] = symbol.docstring.slice(0, 120);
+  return JSON.stringify(out, null, 2);
 }

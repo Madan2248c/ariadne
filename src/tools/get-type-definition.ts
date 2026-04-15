@@ -1,6 +1,7 @@
 // MCP tool: get_type_definition
 import type { Database } from "../graph/db.js";
 import { getTypeDefinition } from "../graph/queries.js";
+import { fmtSymbol, cap } from "./format.js";
 
 export const GET_TYPE_DEFINITION_TOOL = {
   name: "get_type_definition",
@@ -21,19 +22,9 @@ export async function handleGetTypeDefinition(
   args: { symbol: string },
 ): Promise<string> {
   const results = await getTypeDefinition(db, args.symbol);
-  if (results.length === 0) {
-    return `No type definitions found for "${args.symbol}".`;
-  }
+  if (results.length === 0) return `No type definitions found for "${args.symbol}".`;
 
-  return JSON.stringify(
-    results.map(({ symbol }) => ({
-      name: symbol.name,
-      kind: symbol.kind,
-      file: symbol.file,
-      line: symbol.line,
-      signature: symbol.signature ?? null,
-    })),
-    null,
-    2,
-  );
+  const { items, note } = cap(results, "types");
+  const out = items.map(({ symbol }) => fmtSymbol(symbol));
+  return JSON.stringify(note ? { note, types: out } : out, null, 2);
 }

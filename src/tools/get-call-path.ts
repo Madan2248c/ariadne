@@ -1,6 +1,7 @@
 // MCP tool: get_call_path
 import type { Database } from "../graph/db.js";
 import { getCallPath } from "../graph/queries.js";
+import { relPath } from "./format.js";
 
 export const GET_CALL_PATH_TOOL = {
   name: "get_call_path",
@@ -26,13 +27,8 @@ export async function handleGetCallPath(
 
   return JSON.stringify(
     {
-      length: result.symbols.length,
-      path: result.symbols.map((s) => ({
-        name: s.name,
-        kind: s.kind,
-        file: s.file,
-        line: s.line,
-      })),
+      hops: result.symbols.length,
+      path: result.symbols.map((s) => `${s.name} (${relPath(s.file)}:${s.line})`),
     },
     null,
     2,

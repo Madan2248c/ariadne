@@ -1,6 +1,7 @@
 // MCP tool: get_callers
 import type { Database } from "../graph/db.js";
 import { getCallers } from "../graph/queries.js";
+import { fmtCallSite, cap } from "./format.js";
 
 export const GET_CALLERS_TOOL = {
   name: "get_callers",
@@ -19,21 +20,9 @@ export async function handleGetCallers(
   args: { symbol: string },
 ): Promise<string> {
   const results = await getCallers(db, args.symbol);
-  if (results.length === 0) {
-    return `No callers found for "${args.symbol}".`;
-  }
+  if (results.length === 0) return `No callers found for "${args.symbol}".`;
 
-  return JSON.stringify(
-    results.map((cs) => ({
-      caller: {
-        name: cs.caller.name,
-        kind: cs.caller.kind,
-        file: cs.caller.file,
-        line: cs.caller.line,
-      },
-      call_line: cs.line,
-    })),
-    null,
-    2,
-  );
+  const { items, note } = cap(results, "callers");
+  const out = items.map(fmtCallSite);
+  return JSON.stringify(note ? { note, callers: out } : out, null, 2);
 }

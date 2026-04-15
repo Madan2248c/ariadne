@@ -1,6 +1,7 @@
 // MCP tool: get_references
 import type { Database } from "../graph/db.js";
 import { getReferences } from "../graph/queries.js";
+import { fmtCallSite, cap } from "./format.js";
 
 export const GET_REFERENCES_TOOL = {
   name: "get_references",
@@ -19,21 +20,9 @@ export async function handleGetReferences(
   args: { symbol: string },
 ): Promise<string> {
   const results = await getReferences(db, args.symbol);
-  if (results.length === 0) {
-    return `No references found for "${args.symbol}".`;
-  }
+  if (results.length === 0) return `No references found for "${args.symbol}".`;
 
-  return JSON.stringify(
-    results.map((cs) => ({
-      referencing_symbol: {
-        name: cs.caller.name,
-        kind: cs.caller.kind,
-        file: cs.caller.file,
-        line: cs.caller.line,
-      },
-      reference_line: cs.line,
-    })),
-    null,
-    2,
-  );
+  const { items, note } = cap(results, "references");
+  const out = items.map(fmtCallSite);
+  return JSON.stringify(note ? { note, references: out } : out, null, 2);
 }

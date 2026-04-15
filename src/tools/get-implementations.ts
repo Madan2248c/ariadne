@@ -1,6 +1,7 @@
 // MCP tool: get_implementations
 import type { Database } from "../graph/db.js";
 import { getImplementations } from "../graph/queries.js";
+import { fmtSymbol, cap } from "./format.js";
 
 export const GET_IMPLEMENTATIONS_TOOL = {
   name: "get_implementations",
@@ -20,19 +21,9 @@ export async function handleGetImplementations(
   args: { interface: string },
 ): Promise<string> {
   const results = await getImplementations(db, args.interface);
-  if (results.length === 0) {
-    return `No implementations found for "${args.interface}".`;
-  }
+  if (results.length === 0) return `No implementations found for "${args.interface}".`;
 
-  return JSON.stringify(
-    results.map(({ symbol }) => ({
-      name: symbol.name,
-      kind: symbol.kind,
-      file: symbol.file,
-      line: symbol.line,
-      signature: symbol.signature ?? null,
-    })),
-    null,
-    2,
-  );
+  const { items, note } = cap(results, "implementations");
+  const out = items.map(({ symbol }) => fmtSymbol(symbol));
+  return JSON.stringify(note ? { note, implementations: out } : out, null, 2);
 }
