@@ -41,7 +41,7 @@ export function createServer(): McpServer {
 
   server.tool(
     "get_callers",
-    "List all call sites that invoke the given symbol.",
+    "List all call sites that invoke the given symbol. For classes, also returns import and registration sites (e.g. NestJS module registrations).",
     { symbol: z.string().describe("Symbol name to find callers for") },
     async ({ symbol }) => ({
       content: [{ type: "text" as const, text: await handleGetCallers(getDb(), { symbol }) }],

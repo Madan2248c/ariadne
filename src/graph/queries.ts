@@ -43,12 +43,15 @@ export async function getDefinition(
 
 /**
  * Find all call sites that invoke symbols matching `symbolName`.
+ * Falls back to all reference edges (imports, references) when no call edges
+ * exist — this surfaces class registrations and import sites for non-callable
+ * symbols like classes.
  */
 export async function getCallers(
   db: Database.Database,
   symbolName: string,
 ): Promise<CallSite[]> {
-  const rows = db.prepare(`
+  const callRows = db.prepare(`
     SELECT
       s.id, s.name, s.kind, s.file, s.line, s.signature, s.docstring,
       e.line AS call_line
@@ -59,7 +62,26 @@ export async function getCallers(
     ORDER BY s.file, e.line
   `).all({ name: symbolName }) as Record<string, unknown>[];
 
-  return rows.map((row) => ({
+  if (callRows.length > 0) {
+    return callRows.map((row) => ({
+      caller: rowToSymbol(row),
+      line:   (row["call_line"] as number | null) ?? (row["line"] as number),
+    }));
+  }
+
+  // No call edges — fall back to imports + references (e.g. class registrations)
+  const refRows = db.prepare(`
+    SELECT
+      s.id, s.name, s.kind, s.file, s.line, s.signature, s.docstring,
+      e.line AS call_line
+    FROM edges e
+    JOIN symbols s ON s.id = e.from_symbol
+    WHERE e.to_symbol IN (SELECT id FROM symbols WHERE name = $name)
+      AND e.kind IN ('imports', 'references')
+    ORDER BY s.file, e.line
+  `).all({ name: symbolName }) as Record<string, unknown>[];
+
+  return refRows.map((row) => ({
     caller: rowToSymbol(row),
     line:   (row["call_line"] as number | null) ?? (row["line"] as number),
   }));
@@ -89,6 +111,8 @@ export async function getCallees(
 
 /**
  * Find all edges pointing at symbols matching `symbolName`, any edge kind.
+ * Includes calls, imports, references, and implements edges — so decorators,
+ * class registrations, and function calls are all surfaced.
  */
 export async function getReferences(
   db: Database.Database,
@@ -97,7 +121,8 @@ export async function getReferences(
   const rows = db.prepare(`
     SELECT
       s.id, s.name, s.kind, s.file, s.line, s.signature, s.docstring,
-      e.line AS ref_line
+      e.line AS ref_line,
+      e.kind AS edge_kind
     FROM edges e
     JOIN symbols s ON s.id = e.from_symbol
     WHERE e.to_symbol IN (SELECT id FROM symbols WHERE name = $name)
