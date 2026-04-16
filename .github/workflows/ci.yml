@@ -27,15 +27,19 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # 3. No stdout writes (would break MCP protocol)
+      # 3. Test suite
+      - name: Test
+        run: npm test
+
+      # 4. No stdout writes (would break MCP protocol)
       - name: Check no process.stdout.write in src
         run: |
           if grep -r "process\.stdout" src/ --include="*.ts" | grep -v "scip.ts"; then
-            echo "ERROR: process.stdout usage found — stdout is reserved for MCP protocol"
+            echo "ERROR: process.stdout usage found; stdout is reserved for MCP protocol"
             exit 1
           fi
 
-      # 4. Package size check
+      # 5. Package size check
       - name: Package size check
         run: |
           OUTPUT=$(npm pack --dry-run 2>&1)
@@ -49,7 +53,7 @@ jobs:
             exit 1
           fi
 
-      # 5. Smoke test (requires SCIP index — index the repo itself)
+      # 6. Smoke test (requires SCIP index; index the repo itself)
       - name: Generate SCIP index for smoke test
         run: |
           mkdir -p .ariadne

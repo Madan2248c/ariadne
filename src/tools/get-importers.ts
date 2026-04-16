@@ -2,6 +2,7 @@
 import type { Database } from "../graph/db.js";
 import { getImporters } from "../graph/queries.js";
 import { fmtCallSite, cap } from "./format.js";
+import { candidatePaths } from "./path-utils.js";
 
 export const GET_IMPORTERS_TOOL = {
   name: "get_importers",
@@ -19,9 +20,11 @@ export async function handleGetImporters(
   db: Database.Database,
   args: { file: string },
 ): Promise<string> {
-  const absFile = args.file.startsWith("/") ? args.file : `${process.cwd()}/${args.file}`;
-  let results = await getImporters(db, absFile);
-  if (results.length === 0) results = await getImporters(db, args.file);
+  let results: Awaited<ReturnType<typeof getImporters>> = [];
+  for (const candidate of candidatePaths(args.file)) {
+    results = await getImporters(db, candidate);
+    if (results.length > 0) break;
+  }
   if (results.length === 0) return `No importers found for "${args.file}".`;
 
   const callSites = results.map((r) => ({ caller: r.symbol, line: r.line }));

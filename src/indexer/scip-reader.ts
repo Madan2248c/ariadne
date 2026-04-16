@@ -16,6 +16,7 @@
  */
 
 import fs from "node:fs/promises";
+import path from "node:path";
 import type { Database } from "../graph/db.js";
 import { scip } from "./scip.js";
 import type { SymbolKind, EdgeKind } from "../types/index.js";
@@ -146,7 +147,9 @@ export async function loadScipIndex(
   const bulkLoad = db.transaction(() => {
     for (const doc of index.documents) {
       const relPath  = doc.relative_path;
-      const filePath = repoRoot ? `${repoRoot}/${relPath}` : relPath;
+      const filePath = repoRoot
+        ? path.join(repoRoot, relPath).replace(/\\/g, "/")
+        : relPath.replace(/\\/g, "/");
 
       // ── Pass 1: collect definition lines + body ranges ──────────────────
       const defLines = new Map<string, number>();
