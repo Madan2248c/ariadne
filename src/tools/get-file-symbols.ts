@@ -6,7 +6,7 @@ import { fmtSymbol, cap } from "./format.js";
 
 export const GET_FILE_SYMBOLS_TOOL = {
   name: "get_file_symbols",
-  description: "Return every symbol defined in a file or directory. Pass a file path (e.g. src/auth/guard.ts) for a single file, or a directory path (e.g. src/modules/copilot) to get all symbols across every file in that directory. Use the optional 'query' param to filter by name (e.g. query='password' returns only symbols whose name contains 'password').",
+  description: "Return every symbol defined in a file or directory. Pass a file path (e.g. src/auth/guard.ts) for a single file, or a directory path (e.g. src/modules/auth) to get all symbols across every file in that directory. Use the optional 'query' param to filter by name (e.g. query='handler' returns only symbols whose name contains 'handler').",
   inputSchema: {
     type: "object",
     properties: {
