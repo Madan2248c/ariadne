@@ -8,6 +8,7 @@ This folder contains unit and integration tests for Ariadne's parsing, graph, an
 - `tests/languages/javascript.test.ts`: Verifies the JavaScript tree-sitter parser extracts expected symbols and edges from a small fixture.
 - `tests/languages/python.test.ts`: Verifies the Python tree-sitter parser extracts expected symbols and edges from a small fixture.
 - `tests/graph/queries.test.ts`: Verifies core `graph/queries.ts` read APIs against seeded in-memory SQLite data.
+- `tests/indexer/watcher.test.ts`: Verifies incremental watcher post-processing resolves `unresolved:<name>` call edges to concrete symbol IDs and caches repeated unresolved lookups.
 - `tests/integration/ariadne.test.ts`: Verifies end-to-end SCIP load into DB and validates tool handler responses on a tiny synthetic repo.
 - `tests/integration/mcp-stdio.test.ts`: Verifies the real MCP stdio transport by spawning the server and calling tools through an MCP client.
 - `tests/integration/tool-errors.test.ts`: Verifies tool handlers return clear, user-friendly messages on empty/missing data paths.
