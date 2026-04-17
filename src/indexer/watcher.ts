@@ -10,7 +10,7 @@
  * full SCIP re-index (which runs at most once per 24 h).
  *
  * Limitations vs SCIP:
- *   - Single-file scope only: cross-file call resolution uses unresolved: IDs.
+ *   - Best-effort cross-file call linking by name only (no type-flow).
  *   - No type-flow semantics — just syntax-level symbol extraction.
  *   - Good for: adding/renaming functions, moving methods, adding classes.
  *   - Not good for: cross-file refactors (reflected on next SCIP run / restart).
@@ -37,6 +37,44 @@ const IGNORED = [
 // Debounce: wait this many ms after the last write event before processing.
 // Editors often fire multiple rapid events per save (temp file → rename).
 const DEBOUNCE_MS = 150;
+const UNRESOLVED_PREFIX = "unresolved:";
+
+/**
+ * Resolve `calls` edges with `to=unresolved:<name>` to a best-effort symbol id.
+ *
+ * Resolution strategy:
+ *   1. Prefer symbols from the changed file (handles forward declarations).
+ *   2. Fall back to any symbol with the same name.
+ *   3. Keep unresolved id when no candidate exists.
+ *
+ * Results are cached per callee name for this update, so each unique unresolved
+ * name does at most one indexed lookup against `symbols(name)`.
+ */
+export function resolveUnresolvedCallEdges(
+  filePath: string,
+  edges: Edge[],
+  resolveSymbolId: (calleeName: string, filePath: string) => string | null,
+): void {
+  const resolvedByName = new Map<string, string | null>();
+
+  for (const edge of edges) {
+    if (edge.kind !== "calls") continue;
+    if (!edge.to.startsWith(UNRESOLVED_PREFIX)) continue;
+
+    const calleeName = edge.to.slice(UNRESOLVED_PREFIX.length);
+    if (!calleeName) continue;
+
+    let resolvedId = resolvedByName.get(calleeName);
+    if (resolvedId === undefined) {
+      resolvedId = resolveSymbolId(calleeName, filePath);
+      resolvedByName.set(calleeName, resolvedId);
+    }
+
+    if (resolvedId) {
+      edge.to = resolvedId;
+    }
+  }
+}
 
 export function startWatcher(db: Database.Database, repoRoot: string): void {
   // Prepare statements once — reused for every incremental update.
@@ -54,6 +92,13 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
     INSERT OR IGNORE INTO edges (from_symbol, to_symbol, kind, line)
     VALUES ($from_symbol, $to_symbol, $kind, $line)
   `);
+  const findSymbolIdByName = db.prepare(`
+    SELECT id
+    FROM symbols
+    WHERE name = $name
+    ORDER BY CASE WHEN file = $file THEN 0 ELSE 1 END, id
+    LIMIT 1
+  `);
 
   // Wrap delete + insert in a single transaction for atomicity.
   const applyUpdate = db.transaction(
@@ -62,21 +107,35 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
       deleteSymbols.run({ file: filePath });
       for (const sym of symbols) {
         insertSymbol.run({
-          id:        sym.id,
-          name:      sym.name,
-          kind:      sym.kind,
-          file:      sym.file,
-          line:      sym.line,
+          id: sym.id,
+          name: sym.name,
+          kind: sym.kind,
+          file: sym.file,
+          line: sym.line,
           signature: sym.signature ?? null,
           docstring: sym.docstring ?? null,
         });
       }
+
+      // Second pass: resolve cross-file calls emitted as unresolved:<name>.
+      resolveUnresolvedCallEdges(
+        filePath,
+        edges,
+        (calleeName, currentFilePath) => {
+          const row = findSymbolIdByName.get({
+            name: calleeName,
+            file: currentFilePath,
+          }) as { id: string } | undefined;
+          return row?.id ?? null;
+        },
+      );
+
       for (const edge of edges) {
         insertEdge.run({
           from_symbol: edge.from,
-          to_symbol:   edge.to,
-          kind:        edge.kind,
-          line:        edge.line ?? null,
+          to_symbol: edge.to,
+          kind: edge.kind,
+          line: edge.line ?? null,
         });
       }
     },
@@ -104,7 +163,9 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
 
   function handleUnlink(filePath: string): void {
     applyDelete(filePath);
-    process.stderr.write(`[watcher] removed ${path.relative(repoRoot, filePath)}\n`);
+    process.stderr.write(
+      `[watcher] removed ${path.relative(repoRoot, filePath)}\n`,
+    );
   }
 
   // ── Debounce ───────────────────────────────────────────────────────────────
@@ -127,7 +188,7 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
 
   const watcher = chokidar.watch(repoRoot, {
     ignored: IGNORED,
-    ignoreInitial: true,     // don't fire 'add' for existing files at startup
+    ignoreInitial: true, // don't fire 'add' for existing files at startup
     persistent: true,
     // Wait until the file is fully written before firing the event.
     awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
@@ -153,7 +214,5 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
     }),
   );
 
-  watcher.on("unlink", (p) =>
-    schedule(p, () => handleUnlink(p)),
-  );
+  watcher.on("unlink", (p) => schedule(p, () => handleUnlink(p)));
 }

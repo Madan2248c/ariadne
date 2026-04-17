@@ -3,6 +3,8 @@ import path from "node:path";
 import type { Database } from "../graph/db.js";
 import { getFileSymbols, getDirectorySymbols } from "../graph/queries.js";
 import { fmtSymbol, cap } from "./format.js";
+import type { Symbol } from "../types/index.js";
+import { candidatePaths } from "./path-utils.js";
 
 export const GET_FILE_SYMBOLS_TOOL = {
   name: "get_file_symbols",
@@ -24,16 +26,18 @@ export async function handleGetFileSymbols(
   const input = args.file;
   const isDir = !path.extname(input);
 
-  let results;
+  let results: Symbol[] = [];
   if (isDir) {
-    const absDir = input.startsWith("/") ? input : path.join(process.cwd(), input);
-    results = await getDirectorySymbols(db, absDir);
-    if (results.length === 0) results = await getDirectorySymbols(db, input);
+    for (const candidate of candidatePaths(input)) {
+      results = await getDirectorySymbols(db, candidate);
+      if (results.length > 0) break;
+    }
     if (results.length === 0) return `No symbols found under "${input}".`;
   } else {
-    const absFile = input.startsWith("/") ? input : path.join(process.cwd(), input);
-    results = await getFileSymbols(db, absFile);
-    if (results.length === 0) results = await getFileSymbols(db, input);
+    for (const candidate of candidatePaths(input)) {
+      results = await getFileSymbols(db, candidate);
+      if (results.length > 0) break;
+    }
     if (results.length === 0) return `No symbols found in "${input}". The file may not have been indexed, or the path may be incorrect.`;
   }
 

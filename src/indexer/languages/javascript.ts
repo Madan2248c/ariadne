@@ -2,7 +2,7 @@
  * Tree-sitter JavaScript/JSX parser for incremental symbol extraction.
  *
  * Handles: function declarations, arrow functions, classes, methods,
- * call expressions, and import declarations.
+ * call expressions, and import statements/declarations.
  *
  * Used only for incremental patches on file changes — the SCIP indexer
  * handles the full initial load.
@@ -252,6 +252,7 @@ function walkNode(node: Parser.SyntaxNode, ctx: WalkCtx): void {
       processCall(node, ctx);
       break; // recurse into arguments too
 
+    case "import_statement":
     case "import_declaration":
       processImport(node, ctx);
       return;

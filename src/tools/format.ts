@@ -10,12 +10,16 @@
 
 import type { Symbol, CallSite } from "../types/index.js";
 
-const CWD = process.cwd();
-
 /** Strip the repo root prefix so paths are repo-relative. */
 export function relPath(file: string): string {
-  if (file.startsWith(CWD + "/")) return file.slice(CWD.length + 1);
-  if (file.startsWith(CWD + "\\")) return file.slice(CWD.length + 1);
+  const cwd = process.cwd();
+  const normalizedFile = file.replace(/\\/g, "/");
+  const normalizedCwd = cwd.replace(/\\/g, "/");
+  if (normalizedFile.startsWith(normalizedCwd + "/")) {
+    return normalizedFile.slice(normalizedCwd.length + 1);
+  }
+  if (file.startsWith(cwd + "/")) return file.slice(cwd.length + 1);
+  if (file.startsWith(cwd + "\\")) return file.slice(cwd.length + 1);
   return file;
 }
 

@@ -7,7 +7,7 @@
  *   - methods and abstract methods inside classes
  *   - interface, type alias, enum, namespace declarations
  *   - call_expression → "calls" edges
- *   - import_declaration → "imports" edges
+ *   - import_statement/import_declaration → "imports" edges
  *
  * Does NOT replace the SCIP indexer for cross-file semantics — this is only
  * used for incremental patches when a file changes between SCIP runs.
@@ -377,6 +377,7 @@ function walkNode(node: Parser.SyntaxNode, ctx: WalkCtx): void {
       break; // don't return — fall through to recurse into arguments
 
     // Imports
+    case "import_statement":
     case "import_declaration":
       processImport(node, ctx);
       return;
