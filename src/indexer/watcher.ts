@@ -107,11 +107,11 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
       deleteSymbols.run({ file: filePath });
       for (const sym of symbols) {
         insertSymbol.run({
-          id:        sym.id,
-          name:      sym.name,
-          kind:      sym.kind,
-          file:      sym.file,
-          line:      sym.line,
+          id: sym.id,
+          name: sym.name,
+          kind: sym.kind,
+          file: sym.file,
+          line: sym.line,
           signature: sym.signature ?? null,
           docstring: sym.docstring ?? null,
         });
@@ -133,9 +133,9 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
       for (const edge of edges) {
         insertEdge.run({
           from_symbol: edge.from,
-          to_symbol:   edge.to,
-          kind:        edge.kind,
-          line:        edge.line ?? null,
+          to_symbol: edge.to,
+          kind: edge.kind,
+          line: edge.line ?? null,
         });
       }
     },
@@ -163,7 +163,9 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
 
   function handleUnlink(filePath: string): void {
     applyDelete(filePath);
-    process.stderr.write(`[watcher] removed ${path.relative(repoRoot, filePath)}\n`);
+    process.stderr.write(
+      `[watcher] removed ${path.relative(repoRoot, filePath)}\n`,
+    );
   }
 
   // ── Debounce ───────────────────────────────────────────────────────────────
@@ -186,7 +188,7 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
 
   const watcher = chokidar.watch(repoRoot, {
     ignored: IGNORED,
-    ignoreInitial: true,     // don't fire 'add' for existing files at startup
+    ignoreInitial: true, // don't fire 'add' for existing files at startup
     persistent: true,
     // Wait until the file is fully written before firing the event.
     awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
@@ -212,7 +214,5 @@ export function startWatcher(db: Database.Database, repoRoot: string): void {
     }),
   );
 
-  watcher.on("unlink", (p) =>
-    schedule(p, () => handleUnlink(p)),
-  );
+  watcher.on("unlink", (p) => schedule(p, () => handleUnlink(p)));
 }

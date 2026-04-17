@@ -9,9 +9,24 @@ test("resolveUnresolvedCallEdges resolves calls by name and prefers same-file sy
   const otherFileBar = "src/bar.ts:bar:function";
 
   const edges: Edge[] = [
-    { from: `${changedFile}:caller:function`, to: "unresolved:bar", kind: "calls", line: 3 },
-    { from: `${changedFile}:caller:function`, to: "unresolved:missing", kind: "calls", line: 4 },
-    { from: `${changedFile}:foo:module`, to: "module:./bar", kind: "imports", line: 1 },
+    {
+      from: `${changedFile}:caller:function`,
+      to: "unresolved:bar",
+      kind: "calls",
+      line: 3,
+    },
+    {
+      from: `${changedFile}:caller:function`,
+      to: "unresolved:missing",
+      kind: "calls",
+      line: 4,
+    },
+    {
+      from: `${changedFile}:foo:module`,
+      to: "module:./bar",
+      kind: "imports",
+      line: 1,
+    },
   ];
 
   resolveUnresolvedCallEdges(changedFile, edges, (calleeName, filePath) => {
